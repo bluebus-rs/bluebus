@@ -1,0 +1,23 @@
+[package]
+name = "bluebus"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust library for interacting with Bluetooth devices using the org.bluez D-Bus API."
+authors = ["Samet Eraslan <absameteraslan@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/bluebus-rs/bluebus"
+documentation = "https://docs.rs/bluebus"
+keywords = ["bluetooth", "dbus", "bluez", "zbus", "async"]
+categories = ["os::linux-apis", "api-bindings", "hardware-support"]
+readme = "./README.md"
+
+[dependencies]
+futures = "0.3.31"
+lazy_static = "1.5.0"
+tokio = { version = "1.43.0", features = ["full"] }
+zbus = "5.5.0"
+
+[lib]
+name = "bluebus"
+path = "src/lib.rs"
+crate-type = ["lib"]
