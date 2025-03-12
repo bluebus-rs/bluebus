@@ -50,8 +50,8 @@ trait LEAdvertisement {
 }
 
 pub async fn register_advertisement(conn: &zbus::Connection) -> zbus::Result<()> {
-    let adapter_path = crate::ADAPTER_PATH;
-    let adv_path = crate::ADVERTISEMENT_PATH;
+    let adapter_path = crate::paths::get_adapter_path();
+    let adv_path = &crate::paths::get_advertisement_path();
     let bus_name = zbus::names::BusName::try_from("org.bluez")?;
     let advertisement = LEAdvertisementProperties::default();
 
@@ -71,8 +71,8 @@ pub async fn register_advertisement(conn: &zbus::Connection) -> zbus::Result<()>
 }
 
 pub async fn unregister_advertisement(conn: &zbus::Connection) -> zbus::Result<()> {
-    let adapter_path = crate::ADAPTER_PATH;
-    let adv_path = crate::ADVERTISEMENT_PATH;
+    let adapter_path = crate::paths::get_adapter_path();
+    let adv_path = &crate::paths::get_advertisement_path();
     let bus_name = zbus::names::BusName::try_from("org.bluez")?;
 
     let adapter_proxy = zbus::Proxy::new(

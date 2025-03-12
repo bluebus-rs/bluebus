@@ -9,8 +9,8 @@ trait GattManager {
 }
 
 pub async fn register_gatt_application(conn: &zbus::Connection) -> zbus::Result<()> {
-    let adapter_path = crate::paths::ADAPTER_PATH;
-    let application_path = crate::paths::GATT_APPLICATION_PATH;
+    let adapter_path = crate::paths::get_adapter_path();
+    let application_path = &crate::paths::get_gatt_application_path();
     let bus_name = zbus::names::BusName::try_from("org.bluez")?;
     let options: std::collections::HashMap<String, zbus::zvariant::OwnedValue> =
         std::collections::HashMap::new();
@@ -23,8 +23,8 @@ pub async fn register_gatt_application(conn: &zbus::Connection) -> zbus::Result<
 }
 
 pub async fn unregister_gatt_application(conn: &zbus::Connection) -> zbus::Result<()> {
-    let adapter_path = crate::paths::ADAPTER_PATH;
-    let application_path = crate::paths::GATT_APPLICATION_PATH;
+    let adapter_path = crate::paths::get_adapter_path();
+    let application_path = &crate::paths::get_gatt_application_path();
     let bus_name = zbus::names::BusName::try_from("org.bluez")?;
 
     let gatt_manager = GattManagerProxy::new(conn, bus_name, adapter_path).await?;
