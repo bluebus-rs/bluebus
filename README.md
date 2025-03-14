@@ -24,7 +24,7 @@ Add `bluebus` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bluebus = "0.1.1"
+bluebus = "0.1.2"
 ```
 
 ## Example Usage

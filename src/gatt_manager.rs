@@ -1,5 +1,5 @@
 #[zbus::proxy(interface = "org.bluez.GattManager1")]
-trait GattManager {
+pub trait GattManager {
     fn register_application(
         &self,
         application: &str,
