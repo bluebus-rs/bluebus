@@ -75,14 +75,8 @@ pub mod cache;
 pub mod connection;
 /// Controls Bluetooth devices.
 pub mod device;
-/// Interfaces with GATT characteristics.
-pub mod gatt_characteristic;
-/// Manages GATT descriptors.
-pub mod gatt_descriptor;
-/// Controls GATT profiles.
-pub mod gatt_manager;
-/// Handles Bluetooth GATT services.
-pub mod gatt_service;
+/// Interfaces with GATT characteristics and services.
+pub mod gatt;
 /// Manages Bluetooth Low Energy advertisements.
 pub mod leadvertisement;
 /// Listens for Bluetooth device events.
@@ -99,10 +93,7 @@ pub use agent_manager::*;
 pub use cache::*;
 pub use connection::*;
 pub use device::*;
-pub use gatt_characteristic::*;
-pub use gatt_descriptor::*;
-pub use gatt_manager::*;
-pub use gatt_service::*;
+pub use gatt::*;
 pub use leadvertisement::*;
 pub use monitor::*;
 pub use object_manager::*;
