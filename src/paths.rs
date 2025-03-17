@@ -41,12 +41,12 @@ pub fn set_gatt_application_path(new_value: &str) {
 
 // Getter function for ADVERTISEMENT_PATH
 pub fn get_advertisement_path() -> String {
-    let global_string = GATT_APPLICATION_PATH.lock().unwrap();
+    let global_string = ADVERTISEMENT_PATH.lock().unwrap();
     global_string.clone() // Return a copy to avoid locking issues
 }
 
 // Setter function for ADVERTISEMENT_PATH
 pub fn set_advertisement_path(new_value: &str) {
-    let mut global_string = GATT_APPLICATION_PATH.lock().unwrap();
+    let mut global_string = ADVERTISEMENT_PATH.lock().unwrap();
     *global_string = new_value.to_string();
 }

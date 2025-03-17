@@ -52,7 +52,7 @@ impl GattService {
 }
 
 #[proxy(interface = "org.bluez.GattCharacteristic1")]
-trait GattCharacteristic1 {
+pub trait GattCharacteristic1 {
     async fn read_value(
         &self,
         options: std::collections::HashMap<String, zbus::zvariant::OwnedValue>,
