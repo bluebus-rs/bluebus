@@ -1,4 +1,5 @@
 use futures::StreamExt;
+use tokio::sync::mpsc;
 
 /// Monitors Bluetooth device connections and disconnections.
 /// This struct listens for events related to devices being added or removed from the system.
@@ -7,6 +8,8 @@ pub struct Monitor {
     connection: std::sync::Arc<zbus::Connection>,
     /// Proxy for managing object events.
     manager: std::sync::Arc<crate::ObjectManagerProxy<'static>>,
+    device_added_tx: mpsc::Sender<crate::cache::DeviceInfo>,
+    device_removed_tx: mpsc::Sender<crate::cache::DeviceInfo>,
 }
 
 impl Monitor {
@@ -21,10 +24,14 @@ impl Monitor {
     pub async fn new(
         connection: std::sync::Arc<zbus::Connection>,
         manager: std::sync::Arc<crate::ObjectManagerProxy<'static>>,
+        device_added_tx: mpsc::Sender<crate::cache::DeviceInfo>,
+        device_removed_tx: mpsc::Sender<crate::cache::DeviceInfo>,
     ) -> Self {
         Self {
             connection,
             manager,
+            device_added_tx,
+            device_removed_tx,
         }
     }
 
@@ -37,12 +44,7 @@ impl Monitor {
                 let args = signal.args().unwrap();
 
                 if let Some(removed_dev) = crate::remove_device(args.object_path().as_str()) {
-                    println!(
-                        "❌[DEL][DEV]\tAddress({})\tAlias({})\t Interface Path: ({})",
-                        removed_dev.address,
-                        removed_dev.alias,
-                        args.object_path()
-                    );
+                    let _ = self.device_removed_tx.send(removed_dev).await;
                 }
             }
         }
@@ -56,40 +58,36 @@ impl Monitor {
             if let Some(signal) = interfaces_added.next().await {
                 let args = signal.args().unwrap();
                 if let Some(interfaces) = args.interfaces().get("org.bluez.Device1") {
-                    let address = interfaces.get("Address").unwrap().to_string();
-                    let alias = interfaces.get("Alias").unwrap().to_string();
-                    let connected = interfaces
-                        .get("Connected")
-                        .unwrap()
-                        .downcast_ref::<bool>()
-                        .unwrap();
-                    let paired = interfaces
-                        .get("Paired")
-                        .unwrap()
-                        .downcast_ref::<bool>()
-                        .unwrap();
-                    let path = args.object_path().to_string();
+                    if let (Some(address), Some(als), Some(cnnctd), Some(prd)) = (
+                        interfaces.get("Address"), interfaces.get("Alias"), interfaces
+                        .get("Connected"), interfaces
+                        .get("Paired")) {
+                            let addr = address.to_string();
+                            let alias = als.to_string();
+                            let connected = cnnctd
+                                .downcast_ref::<bool>()
+                                .unwrap();
+                            let paired = prd
+                                .downcast_ref::<bool>()
+                                .unwrap();
 
-                    println!(
-                        "✅[NEW][DEV]\tAddress({})\tAlias({})\t Interface Path: ({})",
-                        address,
-                        alias,
-                        args.object_path()
-                    );
+                            let path = args.object_path().to_string();
 
-                    let new_device = crate::cache::DeviceInfo {
-                        address: address.to_string(),
-                        alias,
-                        connected,
-                        paired,
-                    };
-                    crate::add_or_update_device(path, &new_device);
-                    self.monitor_device_properties(
-                        self.connection.clone(),
-                        std::sync::Arc::new(args.object_path.to_string()),
-                    )
-                    .await
-                    .unwrap();
+                            let new_device = crate::cache::DeviceInfo {
+                                address: addr.to_string(),
+                                alias,
+                                connected,
+                                paired,
+                            };
+                            crate::add_or_update_device(path, &new_device);
+                            self.monitor_device_properties(
+                                self.connection.clone(),
+                                std::sync::Arc::new(args.object_path.to_string()),
+                            )
+                            .await
+                            .unwrap();
+                            let _ = self.device_added_tx.send(new_device.clone()).await;
+                    }
                 }
             }
         }
@@ -134,10 +132,6 @@ impl Monitor {
                             device.alias = val;
                         }
                         crate::add_or_update_device(object_path.to_string(), &device);
-                        println!(
-                            "🔄[UPT][DEV]\tAddress({})\tAlias({})\t Interface Path: ({})",
-                            device.address, device.alias, object_path
-                        );
                     }
                 }
             }
