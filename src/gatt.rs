@@ -1,6 +1,6 @@
 use zbus::object_server::Interface;
-use zbus::{Connection, fdo, interface, proxy};
 use zbus::zvariant::Optional;
+use zbus::{fdo, interface, proxy, Connection};
 
 #[proxy(name = "org.bluez.GattService1")]
 pub trait GattService1 {

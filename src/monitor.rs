@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use tokio::sync::mpsc;
+use zbus::zvariant::OwnedValue;
 
 /// Monitors Bluetooth device connections and disconnections.
 /// This struct listens for events related to devices being added or removed from the system.
@@ -14,11 +15,11 @@ pub struct Monitor {
 
 impl Monitor {
     /// Creates a new monitor instance.
-    /// 
+    ///
     /// # Arguments
     /// * `connection` - Shared D-Bus connection.
     /// * `manager` - Proxy to the object manager.
-    /// 
+    ///
     /// # Returns
     /// A new `Monitor` instance.
     pub async fn new(
@@ -58,35 +59,35 @@ impl Monitor {
             if let Some(signal) = interfaces_added.next().await {
                 let args = signal.args().unwrap();
                 if let Some(interfaces) = args.interfaces().get("org.bluez.Device1") {
-                    if let (Some(address), Some(als), Some(cnnctd), Some(prd)) = (
-                        interfaces.get("Address"), interfaces.get("Alias"), interfaces
-                        .get("Connected"), interfaces
-                        .get("Paired")) {
-                            let addr = address.to_string();
-                            let alias = als.to_string();
-                            let connected = cnnctd
-                                .downcast_ref::<bool>()
-                                .unwrap();
-                            let paired = prd
-                                .downcast_ref::<bool>()
-                                .unwrap();
+                    if let Some(address) = interfaces.get("Address") {
+                        let addr = address.to_string();
+                        let alias = interfaces.get("Alias").unwrap_or(&address).to_string();
+                        let connected = interfaces
+                            .get("Connected")
+                            .unwrap_or(&OwnedValue::from(false))
+                            .downcast_ref::<bool>()
+                            .unwrap_or(false);
+                        let paired = interfaces
+                            .get("Paired")
+                            .unwrap_or(&OwnedValue::from(false))
+                            .downcast_ref::<bool>()
+                            .unwrap_or(false);
+                        let path = args.object_path().to_string();
 
-                            let path = args.object_path().to_string();
-
-                            let new_device = crate::cache::DeviceInfo {
-                                address: addr.to_string(),
-                                alias,
-                                connected,
-                                paired,
-                            };
-                            crate::add_or_update_device(path, &new_device);
-                            self.monitor_device_properties(
-                                self.connection.clone(),
-                                std::sync::Arc::new(args.object_path.to_string()),
-                            )
-                            .await
-                            .unwrap();
-                            let _ = self.device_added_tx.send(new_device.clone()).await;
+                        let new_device = crate::cache::DeviceInfo {
+                            address: addr.to_string(),
+                            alias,
+                            connected,
+                            paired,
+                        };
+                        crate::add_or_update_device(path, &new_device);
+                        self.monitor_device_properties(
+                            self.connection.clone(),
+                            std::sync::Arc::new(args.object_path.to_string()),
+                        )
+                        .await
+                        .unwrap();
+                        let _ = self.device_added_tx.send(new_device.clone()).await;
                     }
                 }
             }

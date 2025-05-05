@@ -1,3 +1,7 @@
+use zbus::zvariant::OwnedValue;
+
+use crate::ObjectManagerProxy;
+
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {
     pub address: String,
@@ -30,7 +34,8 @@ pub fn remove_device(path: &str) -> Option<DeviceInfo> {
 }
 
 /// Lists all devices in the cache.
-pub fn list_devices() -> Vec<DeviceInfo> {
+pub async fn list_devices() -> Vec<DeviceInfo> {
+    list_system_devices().await;
     let devices = DEVICES_CACHE.read().expect("Failed to acquire read lock");
     devices.values().cloned().collect()
 }
@@ -39,4 +44,41 @@ pub fn list_devices() -> Vec<DeviceInfo> {
 pub fn clear_devices() {
     let mut devices = DEVICES_CACHE.write().expect("Failed to acquire write lock");
     devices.clear();
+}
+
+pub async fn list_system_devices() {
+    let conn = crate::get_system_connection().await.unwrap();
+    let proxy = ObjectManagerProxy::new(&conn).await.unwrap();
+    let objects = proxy.get_managed_objects().await.unwrap();
+
+    let adapter_path = crate::get_adapter_path();
+    for (path, interface) in objects {
+        if path.starts_with(&format!("{}/dev", adapter_path)) {
+            if let Some(device) = interface.get("org.bluez.Device1") {
+                if let Some(address) = device.get("Address") {
+                    let addr = address.to_string();
+                    let alias = device.get("Alias").unwrap_or(&address).to_string();
+                    let connected = device
+                        .get("Connected")
+                        .unwrap_or(&OwnedValue::from(false))
+                        .downcast_ref::<bool>()
+                        .unwrap_or(false);
+                    let paired = device
+                        .get("Paired")
+                        .unwrap_or(&OwnedValue::from(false))
+                        .downcast_ref::<bool>()
+                        .unwrap_or(false);
+                    let path = path.to_string();
+                    let device_info = DeviceInfo {
+                        address: addr,
+                        alias,
+                        connected,
+                        paired,
+                    };
+
+                    crate::add_or_update_device(path, &device_info);
+                }
+            }
+        }
+    }
 }

@@ -9,11 +9,11 @@ pub struct Agent {
 
 impl Agent {
     /// Creates a new agent with a given PIN code and passkey.
-    /// 
+    ///
     /// # Arguments
     /// * `pincode` - A string representing the PIN code.
     /// * `passkey` - A 32-bit unsigned integer representing the passkey.
-    /// 
+    ///
     /// # Returns
     /// A new `Agent` instance.
     pub fn new(pincode: String, passkey: u32) -> Self {
@@ -21,7 +21,7 @@ impl Agent {
     }
 
     /// Releases the agent, indicating it is no longer in use.
-    /// 
+    ///
     /// # Returns
     /// A `Result` indicating success or failure.
     pub async fn release(&self) -> zbus::fdo::Result<()> {
@@ -30,10 +30,10 @@ impl Agent {
     }
 
     /// Handles a request for a PIN code from a Bluetooth device.
-    /// 
+    ///
     /// # Arguments
     /// * `device` - The D-Bus object path of the requesting device.
-    /// 
+    ///
     /// # Returns
     /// The PIN code as a string.
     pub async fn request_pin_code(
@@ -48,7 +48,7 @@ impl Agent {
     }
 
     /// Displays a PIN code on the device for user verification.
-    /// 
+    ///
     /// # Arguments
     /// * `device` - The D-Bus object path of the device.
     /// * `pincode` - The PIN code to display.
@@ -62,10 +62,10 @@ impl Agent {
     }
 
     /// Handles a request for a passkey from a Bluetooth device.
-    /// 
+    ///
     /// # Arguments
     /// * `device` - The D-Bus object path of the requesting device.
-    /// 
+    ///
     /// # Returns
     /// The passkey as a 32-bit unsigned integer.
     pub async fn request_passkey(
@@ -80,7 +80,7 @@ impl Agent {
     }
 
     /// Displays the passkey and entered digits on the device.
-    /// 
+    ///
     /// # Arguments
     /// * `device` - The D-Bus object path of the device.
     /// * `passkey` - The passkey to display.
@@ -99,7 +99,7 @@ impl Agent {
     }
 
     /// Requests user confirmation for pairing based on the passkey.
-    /// 
+    ///
     /// # Arguments
     /// * `device` - The D-Bus object path of the device.
     /// * `passkey` - The passkey for verification.
@@ -116,7 +116,7 @@ impl Agent {
     }
 
     /// Requests user authorization for a connection.
-    /// 
+    ///
     /// # Arguments
     /// * `device` - The D-Bus object path of the device.
     pub async fn request_authorization(
@@ -128,7 +128,7 @@ impl Agent {
     }
 
     /// Authorizes a service request from a Bluetooth device.
-    /// 
+    ///
     /// # Arguments
     /// * `device` - The D-Bus object path of the device.
     /// * `uuid` - The UUID of the requested service.

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
+use zbus;
 use zbus::object_server::Interface;
 use zbus::zvariant::{ObjectPath, Optional, OwnedValue, Value};
 use zbus::{fdo, interface};
-use zbus;
 
 #[allow(non_snake_case)]
 pub struct LEAdvertisementProperties {
@@ -124,10 +124,10 @@ impl Default for LEAdvertisementProperties {
             Type: "peripheral".to_string(), // Must be "broadcast" or "peripheral"
             LocalName: Optional::from(Some("MyDevice".to_string())), // Optional local name
             ServiceUUIDs: vec!["180D".to_string(), "180F".to_string()], // List of service UUIDs
-            SolicitUUIDs: Vec::new(), // Optional solicit UUIDs
+            SolicitUUIDs: Vec::new(),       // Optional solicit UUIDs
             ManufacturerData: HashMap::new(), // Optional manufacturer data
-            ServiceData: HashMap::new(), // Optional service data
-            Data: HashMap::new(), // Optional data
+            ServiceData: HashMap::new(),    // Optional service data
+            Data: HashMap::new(),           // Optional data
             Discoverable: Optional::from(Some(true)), // Optional discoverable flag
             DiscoverableTimeout: Optional::from(Some(30)), // Optional discoverable timeout
             Includes: vec!["tx-power".to_string()], // Optional includes
@@ -168,7 +168,9 @@ pub async fn register_advertisement(
     .await?;
 
     // Register the advertisement on the D-Bus
-    conn.object_server().at(adv_object_path.clone(), advertisement).await?;
+    conn.object_server()
+        .at(adv_object_path.clone(), advertisement)
+        .await?;
 
     // Prepare the options dictionary (a{sv})
     let mut options: HashMap<&str, Value> = HashMap::new();

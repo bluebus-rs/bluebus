@@ -1,5 +1,5 @@
 //! # Bluetooth D-Bus API for Rust
-//! 
+//!
 //! This library provides an interface to interact with Bluetooth devices
 //! using the BlueZ D-Bus API. It enables communication with Bluetooth adapters,
 //! devices, GATT profiles, and Low Energy advertisements.
@@ -14,7 +14,7 @@
 //! Here’s how you can scan for Bluetooth devices and list them:
 //!
 //! ```no_run
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() -> zbus::Result<()> {
 //!     let conn = bluebus::get_system_connection().await.unwrap();
@@ -46,7 +46,7 @@
 //! ```
 //!
 //! ## Modules Overview
-//! 
+//!
 //! - [`adapter`] - Manages Bluetooth adapters (enables/disables, scans devices).
 //! - [`agent`] - Handles pairing and authentication requests.
 //! - [`device`] - Manages Bluetooth device connections.
