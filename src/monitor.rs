@@ -1,6 +1,5 @@
 use futures::StreamExt;
 use tokio::sync::mpsc;
-use zbus::zvariant::OwnedValue;
 
 /// Monitors Bluetooth device connections and disconnections.
 /// This struct listens for events related to devices being added or removed from the system.
@@ -60,18 +59,30 @@ impl Monitor {
                 let args = signal.args().unwrap();
                 if let Some(interfaces) = args.interfaces().get("org.bluez.Device1") {
                     if let Some(address) = interfaces.get("Address") {
-                        let addr = address.to_string();
-                        let alias = interfaces.get("Alias").unwrap_or(&address).to_string();
+                        let addr = address
+                            .downcast_ref::<zbus::zvariant::Str>()
+                            .ok()
+                            .map(|s| s.as_str().to_owned())
+                            .unwrap_or_default()
+                            .to_string();
+
+                        let alias = interfaces
+                            .get("Alias")
+                            .and_then(|alias| alias.downcast_ref::<zbus::zvariant::Str>().ok())
+                            .map(|s| s.as_str().to_owned())
+                            .unwrap_or(addr.to_string())
+                            .to_string();
+
                         let connected = interfaces
                             .get("Connected")
-                            .unwrap_or(&OwnedValue::from(false))
-                            .downcast_ref::<bool>()
+                            .and_then(|v| v.downcast_ref::<bool>().ok())
                             .unwrap_or(false);
+
                         let paired = interfaces
                             .get("Paired")
-                            .unwrap_or(&OwnedValue::from(false))
-                            .downcast_ref::<bool>()
+                            .and_then(|v| v.downcast_ref::<bool>().ok())
                             .unwrap_or(false);
+
                         let path = args.object_path().to_string();
 
                         let new_device = crate::cache::DeviceInfo {
@@ -101,6 +112,8 @@ impl Monitor {
         conn: std::sync::Arc<zbus::Connection>,
         object_path: std::sync::Arc<String>,
     ) -> zbus::Result<()> {
+        let path_clone = object_path.clone();
+
         tokio::spawn(async move {
             let props = zbus::fdo::PropertiesProxy::builder(&conn)
                 .destination("org.bluez")
@@ -121,22 +134,29 @@ impl Monitor {
                 if interface_name == "org.bluez.Device1" {
                     if let Some(mut device) = crate::get_device(object_path.as_str()) {
                         if let Some(new_value) = changed_props.get("Connected") {
-                            let val = new_value.downcast_ref::<bool>().unwrap();
-                            device.connected = val;
+                            if let Ok(val) = new_value.downcast_ref::<bool>() {
+                                device.connected = val;
+                            }
                         }
+
                         if let Some(new_value) = changed_props.get("Paired") {
-                            let val = new_value.downcast_ref::<bool>().unwrap();
-                            device.paired = val;
+                            if let Ok(val) = new_value.downcast_ref::<bool>() {
+                                device.paired = val;
+                            }
                         }
+
                         if let Some(new_value) = changed_props.get("Alias") {
-                            let val = new_value.downcast_ref::<String>().unwrap();
-                            device.alias = val;
+                            if let Ok(val) = new_value.downcast_ref::<zbus::zvariant::Str>() {
+                                device.alias = val.as_str().to_owned();
+                            }
                         }
-                        crate::add_or_update_device(object_path.to_string(), &device);
+
+                        crate::add_or_update_device(path_clone.to_string(), &device);
                     }
                 }
             }
         });
+
         Ok(())
     }
 }

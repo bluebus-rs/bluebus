@@ -1,5 +1,3 @@
-use zbus::zvariant::OwnedValue;
-
 use crate::ObjectManagerProxy;
 
 #[derive(Debug, Clone)]
@@ -56,17 +54,28 @@ pub async fn list_system_devices() {
         if path.starts_with(&format!("{}/dev", adapter_path)) {
             if let Some(device) = interface.get("org.bluez.Device1") {
                 if let Some(address) = device.get("Address") {
-                    let addr = address.to_string();
-                    let alias = device.get("Alias").unwrap_or(&address).to_string();
+                    let addr = address
+                        .downcast_ref::<zbus::zvariant::Str>()
+                        .ok()
+                        .map(|s| s.as_str().to_owned())
+                        .unwrap_or_default()
+                        .to_string();
+
+                    let alias = device
+                        .get("Alias")
+                        .and_then(|alias| alias.downcast_ref::<zbus::zvariant::Str>().ok())
+                        .map(|s| s.as_str().to_owned())
+                        .unwrap_or(addr.to_string())
+                        .to_string();
+
                     let connected = device
                         .get("Connected")
-                        .unwrap_or(&OwnedValue::from(false))
-                        .downcast_ref::<bool>()
+                        .and_then(|v| v.downcast_ref::<bool>().ok())
                         .unwrap_or(false);
+
                     let paired = device
                         .get("Paired")
-                        .unwrap_or(&OwnedValue::from(false))
-                        .downcast_ref::<bool>()
+                        .and_then(|v| v.downcast_ref::<bool>().ok())
                         .unwrap_or(false);
                     let path = path.to_string();
                     let device_info = DeviceInfo {
