@@ -1,6 +1,6 @@
 [package]
 name = "bluebus"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 description = "A Rust library for interacting with Bluetooth devices using the org.bluez D-Bus API."
 authors = ["Samet Eraslan <absameteraslan@gmail.com>"]

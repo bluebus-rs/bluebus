@@ -16,6 +16,7 @@ pub struct DeviceInfo {
     pub pairable_timeout: Option<u32>,
     pub power_state: Option<String>,
     pub powered: Option<bool>,
+    pub trusted: Option<bool>,
     pub rssi: Option<i16>,
 }
 
@@ -103,10 +104,14 @@ pub async fn list_system_devices() -> Vec<DeviceInfo> {
                         .get("Powered")
                         .and_then(|v| v.downcast_ref::<bool>().ok());
 
+                    let trusted = device
+                        .get("Trusted")
+                        .and_then(|v| v.downcast_ref::<bool>().ok());
+
                     let rssi = device
                         .get("RSSI")
                         .and_then(|v| v.downcast_ref::<i16>().ok());
-                    
+
                     let device_info = DeviceInfo {
                         address: addr,
                         alias,
@@ -122,6 +127,7 @@ pub async fn list_system_devices() -> Vec<DeviceInfo> {
                         pairable_timeout,
                         power_state,
                         powered,
+                        trusted,
                         rssi,
                     };
 

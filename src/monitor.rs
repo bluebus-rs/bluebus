@@ -138,6 +138,10 @@ impl Monitor {
                             .get("Powered")
                             .and_then(|v| v.downcast_ref::<bool>().ok());
 
+                        let trusted = interfaces
+                            .get("Trusted")
+                            .and_then(|v| v.downcast_ref::<bool>().ok());
+
                         let rssi = interfaces
                             .get("RSSI")
                             .and_then(|v| v.downcast_ref::<i16>().ok());
@@ -159,6 +163,7 @@ impl Monitor {
                             pairable_timeout,
                             power_state,
                             powered,
+                            trusted,
                             rssi,
                         };
                         
