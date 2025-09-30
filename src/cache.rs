@@ -6,50 +6,32 @@ pub struct DeviceInfo {
     pub alias: String,
     pub connected: bool,
     pub paired: bool,
+    pub address_type: Option<String>,
+    pub connectable: Option<bool>,
+    pub discoverable: Option<bool>,
+    pub discoverable_timeout: Option<u32>,
+    pub discovering: Option<bool>,
+    pub name: Option<String>,
+    pub pairable: Option<bool>,
+    pub pairable_timeout: Option<u32>,
+    pub power_state: Option<String>,
+    pub powered: Option<bool>,
+    pub rssi: Option<i16>,
 }
 
-lazy_static::lazy_static! {
-    pub static ref DEVICES_CACHE:  std::sync::Arc<std::sync::RwLock<std::collections::HashMap::<String, DeviceInfo>>>=
-    std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::<String, DeviceInfo>::new()));
-}
-
-/// Adds or updates a device in the cache.
-pub fn add_or_update_device(path: String, device: &DeviceInfo) {
-    let mut devices = DEVICES_CACHE.write().expect("Failed to acquire write lock");
-    devices.insert(path, device.clone());
-}
-
-/// Retrieves a device from the cache by its address.
-pub fn get_device(path: &str) -> Option<DeviceInfo> {
-    let devices = DEVICES_CACHE.read().expect("Failed to acquire read lock");
-    devices.get(path).cloned()
-}
-
-/// Removes a device from the cache by its address.
-pub fn remove_device(path: &str) -> Option<DeviceInfo> {
-    let mut devices = DEVICES_CACHE.write().expect("Failed to acquire write lock");
-    devices.remove(path)
-}
-
-/// Lists all devices in the cache.
+/// Lists all devices in the system.
 pub async fn list_devices() -> Vec<DeviceInfo> {
-    list_system_devices().await;
-    let devices = DEVICES_CACHE.read().expect("Failed to acquire read lock");
-    devices.values().cloned().collect()
+    list_system_devices().await
 }
 
-/// Clears all devices from the cache.
-pub fn clear_devices() {
-    let mut devices = DEVICES_CACHE.write().expect("Failed to acquire write lock");
-    devices.clear();
-}
-
-pub async fn list_system_devices() {
+pub async fn list_system_devices() -> Vec<DeviceInfo> {
     let conn = crate::get_system_connection().await.unwrap();
     let proxy = ObjectManagerProxy::new(&conn).await.unwrap();
     let objects = proxy.get_managed_objects().await.unwrap();
 
+    let mut devices = Vec::new();
     let adapter_path = crate::get_adapter_path();
+    
     for (path, interface) in objects {
         if path.starts_with(&format!("{}/dev", adapter_path)) {
             if let Some(device) = interface.get("org.bluez.Device1") {
@@ -77,17 +59,77 @@ pub async fn list_system_devices() {
                         .get("Paired")
                         .and_then(|v| v.downcast_ref::<bool>().ok())
                         .unwrap_or(false);
-                    let path = path.to_string();
+
+                    let address_type = device
+                        .get("AddressType")
+                        .and_then(|v| v.downcast_ref::<zbus::zvariant::Str>().ok())
+                        .map(|s| s.as_str().to_owned());
+
+                    let connectable = device
+                        .get("Connectable")
+                        .and_then(|v| v.downcast_ref::<bool>().ok());
+
+                    let discoverable = device
+                        .get("Discoverable")
+                        .and_then(|v| v.downcast_ref::<bool>().ok());
+
+                    let discoverable_timeout = device
+                        .get("DiscoverableTimeout")
+                        .and_then(|v| v.downcast_ref::<u32>().ok());
+
+                    let discovering = device
+                        .get("Discovering")
+                        .and_then(|v| v.downcast_ref::<bool>().ok());
+
+                    let name = device
+                        .get("Name")
+                        .and_then(|v| v.downcast_ref::<zbus::zvariant::Str>().ok())
+                        .map(|s| s.as_str().to_owned());
+
+                    let pairable = device
+                        .get("Pairable")
+                        .and_then(|v| v.downcast_ref::<bool>().ok());
+
+                    let pairable_timeout = device
+                        .get("PairableTimeout")
+                        .and_then(|v| v.downcast_ref::<u32>().ok());
+
+                    let power_state = device
+                        .get("PowerState")
+                        .and_then(|v| v.downcast_ref::<zbus::zvariant::Str>().ok())
+                        .map(|s| s.as_str().to_owned());
+
+                    let powered = device
+                        .get("Powered")
+                        .and_then(|v| v.downcast_ref::<bool>().ok());
+
+                    let rssi = device
+                        .get("RSSI")
+                        .and_then(|v| v.downcast_ref::<i16>().ok());
+                    
                     let device_info = DeviceInfo {
                         address: addr,
                         alias,
                         connected,
                         paired,
+                        address_type,
+                        connectable,
+                        discoverable,
+                        discoverable_timeout,
+                        discovering,
+                        name,
+                        pairable,
+                        pairable_timeout,
+                        power_state,
+                        powered,
+                        rssi,
                     };
 
-                    crate::add_or_update_device(path, &device_info);
+                    devices.push(device_info);
                 }
             }
         }
     }
+    
+    devices
 }
