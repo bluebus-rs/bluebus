@@ -22,13 +22,17 @@ pub struct DeviceInfo {
 
 /// Lists all devices in the system.
 pub async fn list_devices() -> Vec<DeviceInfo> {
-    list_system_devices().await
+    if let Ok (devices) = list_system_devices().await {
+        devices
+    } else {
+        Vec::new()
+    }
 }
 
-pub async fn list_system_devices() -> Vec<DeviceInfo> {
-    let conn = crate::get_system_connection().await.unwrap();
-    let proxy = ObjectManagerProxy::new(&conn).await.unwrap();
-    let objects = proxy.get_managed_objects().await.unwrap();
+pub async fn list_system_devices() -> Result<Vec<DeviceInfo>, Box<dyn std::error::Error + Send + Sync>> {
+    let conn = crate::get_system_connection().await?;
+    let proxy = ObjectManagerProxy::new(&conn).await?;
+    let objects = proxy.get_managed_objects().await?;
 
     let mut devices = Vec::new();
     let adapter_path = crate::get_adapter_path();
@@ -137,5 +141,5 @@ pub async fn list_system_devices() -> Vec<DeviceInfo> {
         }
     }
     
-    devices
+    Ok(devices)
 }
