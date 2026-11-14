@@ -1,13 +1,13 @@
-/// Establishes a system D-Bus connection for Bluetooth operations.
+/// Opens a new connection to the D-Bus system bus, where BlueZ lives.
 ///
-/// This function returns a new connection to the system bus, which
-/// is required for interacting with Bluetooth adapters and devices.
+/// Every call opens a *new* connection; clone the returned
+/// [`zbus::Connection`] (cheap, reference counted) to share it instead.
 ///
-/// # Returns
-/// * `Connection` - An established connection to the system bus.
+/// The bus address can be overridden with the standard
+/// `DBUS_SYSTEM_BUS_ADDRESS` environment variable.
 ///
-/// # Panics
-/// This function will panic if the connection cannot be established.
+/// # Errors
+/// Returns an error if the system bus is unreachable or authentication fails.
 pub async fn get_system_connection() -> Result<zbus::Connection, zbus::Error> {
     zbus::Connection::system().await
 }

@@ -10,58 +10,47 @@
 //! - **GATT Support**: Read/write characteristics and descriptors.
 //! - **LE Advertisement**: Control Bluetooth Low Energy advertisements.
 //!
-//! ## Example Usage
-//! Here’s how you can scan for Bluetooth devices and list them:
+//! ## Example
+//! Power the default adapter on, scan for three seconds and list devices:
 //!
 //! ```no_run
-//!
 //! #[tokio::main]
 //! async fn main() -> zbus::Result<()> {
-//!     let conn = bluebus::get_system_connection().await.unwrap();
-//!     let adapter = bluebus::AdapterProxy::builder(&conn)
-//!         .path(bluebus::ADAPTER_PATH)?.build().await?;
-//!      
+//!     let conn = bluebus::get_system_connection().await?;
+//!     let adapter = bluebus::adapter_proxy(&conn).await?;
+//!
 //!     if !adapter.powered().await? {
 //!         adapter.set_powered(true).await?;
 //!     }
 //!
 //!     adapter.start_discovery().await?;
-//!     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+//!     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 //!     adapter.stop_discovery().await?;
 //!
-//!     let monitor = Arc::new(bluebus::Monitor::new(conn.clone(), manager).await);
-//!     let monitor_clone = Arc::clone(&monitor);
-//!
-//!     bluebus::print_avaiable_devices(&objects);
-//!
-//!     tokio::spawn(async move {
-//!         monitor.monitor_device_added().await;
-//!     });
-//!
-//!     tokio::spawn(async move {
-//!         monitor_clone.monitor_device_removed().await;
-//!     });
+//!     for device in bluebus::list_devices_with_connection(&conn).await? {
+//!         println!("{} {} rssi={:?}", device.address, device.alias, device.rssi);
+//!     }
 //!     Ok(())
 //! }
 //! ```
 //!
-//! ## Modules Overview
+//! See [`Monitor`] for live add/remove/change events, [`register_agent`] for
+//! pairing, [`register_gatt_application`] for a GATT server and
+//! [`register_advertisement`] for LE advertising.
 //!
-//! - [`adapter`] - Manages Bluetooth adapters (enables/disables, scans devices).
-//! - [`agent`] - Handles pairing and authentication requests.
-//! - [`device`] - Manages Bluetooth device connections.
-//! - [`gatt_service`] - Interfaces with Bluetooth GATT services.
-//! - [`monitor`] - Monitors Bluetooth events like device additions/removals.
-//! - [`object_manager`] - Handles D-Bus object management.
+//! ## Modules
 //!
-//! ## Installation
-//! Add the following to your `Cargo.toml`:
+//! - [`adapter`] – adapters: power, discovery, filters.
+//! - [`device`] – remote devices: connect, pair, trust, battery.
+//! - [`agent`] / [`agent_manager`] – pairing agents.
+//! - [`gatt`] – GATT client proxies and GATT server objects.
+//! - [`leadvertisement`] – LE advertisements.
+//! - [`monitor`] – device events.
+//! - [`cache`] – device snapshots ([`DeviceInfo`]).
+//! - [`object_manager`] – BlueZ object tree.
+//! - [`paths`] – well-known names and configurable paths.
 //!
-//! ```toml
-//! [dependencies]
-//! bluetooth_lib = "0.1"
-//! ```
-//!
+//! All items are re-exported at the crate root.
 
 /// Manages Bluetooth adapter interactions.
 pub mod adapter;
@@ -83,6 +72,7 @@ pub mod leadvertisement;
 pub mod monitor;
 /// Manages D-Bus objects.
 pub mod object_manager;
+mod object_server_ready;
 /// Defines Bluetooth system paths.
 pub mod paths;
 
@@ -98,3 +88,8 @@ pub use leadvertisement::*;
 pub use monitor::*;
 pub use object_manager::*;
 pub use paths::*;
+
+// Compile every example of the README as a doctest.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+pub struct ReadmeDoctests;
