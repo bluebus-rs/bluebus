@@ -264,7 +264,7 @@ async fn scan_collects_matching_devices() {
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].address, HEADSET);
 
-    for filter in [
+    for (i, filter) in [
         ScanFilter::new().name("Headset"),
         ScanFilter::new().name_prefix("Head"),
         ScanFilter::new().address("11:22:33:44:55:66"),
@@ -272,12 +272,15 @@ async fn scan_collects_matching_devices() {
         ScanFilter::new()
             .service_uuids(["180d", "180f"])
             .min_rssi(-50),
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let found = adapter
             .scan(filter.clone(), Duration::from_millis(50))
             .await
             .unwrap();
-        assert_eq!(found.len(), 1, "{filter:?}");
+        assert_eq!(found.len(), 1, "filter #{i}");
         assert!(filter.matches(&found[0]));
     }
     let both = adapter
@@ -516,8 +519,11 @@ async fn device_gatt_client() {
     assert_eq!(chr.descriptors[0].flags, ["read", "write"]);
 
     // Every UUID spelling resolves to the same characteristic.
-    for uuid in ["2a19", "0x2A19", CHR_UUID, &CHR_UUID.to_uppercase()] {
-        assert_eq!(device.read(uuid).await.unwrap(), vec![87], "{uuid}");
+    for (i, uuid) in ["2a19", "0x2A19", CHR_UUID, &CHR_UUID.to_uppercase()]
+        .into_iter()
+        .enumerate()
+    {
+        assert_eq!(device.read(uuid).await.unwrap(), vec![87], "spelling #{i}");
     }
     assert_eq!(device.battery_level().await.unwrap(), 87, "Battery1");
 
@@ -710,7 +716,7 @@ fn find_object(
                 )
             })
         })
-        .unwrap_or_else(|| panic!("{iface} {uuid} not exported"))
+        .unwrap_or_else(|| panic!("{iface}: characteristic not exported"))
 }
 
 #[tokio::test]
