@@ -209,7 +209,15 @@ pub async fn gatt_characteristic_proxy<'a>(
     conn: &Connection,
     path: impl TryInto<ObjectPath<'a>, Error = zbus::zvariant::Error>,
 ) -> zbus::Result<GattCharacteristic1Proxy<'a>> {
-    GattCharacteristic1Proxy::new(conn, crate::BLUEZ_SERVICE, path.try_into()?).await
+    // Lazily: the cache (and its PropertiesChanged subscription) is set up on
+    // the first property read, so read/write/notify-only users never pay for
+    // re-parsing every notification into it.
+    GattCharacteristic1Proxy::builder(conn)
+        .destination(crate::BLUEZ_SERVICE)?
+        .path(path.try_into()?)?
+        .cache_properties(zbus::proxy::CacheProperties::Lazily)
+        .build()
+        .await
 }
 
 /// Creates a [`GattDescriptor1Proxy`] for a BlueZ descriptor object.
@@ -349,10 +357,135 @@ pub async fn characteristic_notifications(
     proxy.start_notify().await?;
     Ok(Box::pin(signals.filter_map(|msg| async move {
         let msg = msg.ok()?;
-        let (_, changed, _): (String, HashMap<String, OwnedValue>, Vec<String>) =
-            msg.body().deserialize().ok()?;
-        Vec::<u8>::try_from(changed.get("Value")?.try_clone().ok()?).ok()
+        let body = msg.body();
+        if let Some(value) = notification_value_fast(&msg, &body) {
+            return Some(value);
+        }
+        let (_, changed, _): (&str, HashMap<&str, Value<'_>>, Vec<&str>) =
+            body.deserialize().ok()?;
+        match changed.get("Value")? {
+            Value::Array(a) => a.iter().map(|v| u8::try_from(v).ok()).collect(),
+            _ => None,
+        }
     })))
+}
+
+/// Reads the value of a `PropertiesChanged` signal whose changed properties
+/// are exactly `{"Value": <ay>}` (how BlueZ reports a notification) straight
+/// from the D-Bus wire format, without building a `Value` per byte. Returns
+/// `None` for anything else; the caller then decodes it the general way.
+fn notification_value_fast(msg: &zbus::Message, body: &zbus::message::Body) -> Option<Vec<u8>> {
+    // zbus prints a multi-argument body signature as one structure.
+    let signature = body.signature().to_string();
+    if signature != "(sa{sv}as)" && signature != "sa{sv}as" {
+        return None;
+    }
+    let data = body.data();
+    // Alignment is relative to the message start; the body starts 8-aligned.
+    if data.context().position() % 8 != 0 {
+        return None;
+    }
+    let le = matches!(
+        msg.primary_header().endian_sig(),
+        zbus::message::EndianSig::Little
+    );
+    let b: &[u8] = data;
+    let u32_at = |pos: usize| -> Option<u32> {
+        let x: [u8; 4] = b.get(pos..pos + 4)?.try_into().ok()?;
+        Some(if le {
+            u32::from_le_bytes(x)
+        } else {
+            u32::from_be_bytes(x)
+        })
+    };
+    let align = |pos: usize, n: usize| pos.div_ceil(n) * n;
+    // s: interface name
+    let mut pos = 4 + u32_at(0)? as usize + 1;
+    // a{sv}: byte length, then the entries, 8-aligned
+    pos = align(pos, 4);
+    let dict_len = u32_at(pos)? as usize;
+    pos = align(pos + 4, 8);
+    let dict_end = pos + dict_len;
+    // key "Value"
+    let key_len = u32_at(pos)? as usize;
+    if b.get(pos + 4..pos + 4 + key_len)? != b"Value" {
+        return None;
+    }
+    pos += 4 + key_len + 1;
+    // variant signature "ay"
+    if b.get(pos..pos + 4)? != [2, b'a', b'y', 0] {
+        return None;
+    }
+    pos = align(pos + 4, 4);
+    let n = u32_at(pos)? as usize;
+    let start = pos + 4;
+    // The only changed property: the dict ends right after the array.
+    if start + n != dict_end {
+        return None;
+    }
+    Some(b.get(start..start + n)?.to_vec())
+}
+
+/// Streams notifications through a socket from BlueZ' `AcquireNotify`,
+/// without D-Bus: each value arrives as one packet on a file descriptor
+/// instead of a `PropertiesChanged` signal, which costs less CPU and latency
+/// at high notification rates. Also returns the negotiated MTU.
+///
+/// Notifications stop when the stream is dropped (the socket is closed); no
+/// `StopNotify` call is needed. Fails with `org.bluez.Error.NotPermitted` or
+/// `NotSupported` when the characteristic or BlueZ does not allow it (for
+/// example when another client already acquired it, or for indications on
+/// some BlueZ versions); fall back to [`characteristic_notifications`] then.
+///
+/// ```no_run
+/// use futures::StreamExt;
+///
+/// # async fn run(chr: bluebus::GattCharacteristic1Proxy<'static>) -> zbus::Result<()> {
+/// let (mut notifications, mtu) = match bluebus::characteristic_notifications_acquired(&chr).await {
+///     Ok((s, mtu)) => (s.boxed(), mtu),
+///     Err(_) => (bluebus::characteristic_notifications(&chr).await?.boxed(), 0),
+/// };
+/// println!("mtu {mtu}");
+/// while let Some(value) = notifications.next().await {
+///     println!("notification: {value:02x?}");
+/// }
+/// # Ok(()) }
+/// ```
+pub async fn characteristic_notifications_acquired(
+    proxy: &GattCharacteristic1Proxy<'_>,
+) -> zbus::Result<(impl Stream<Item = Vec<u8>> + Unpin + Send + 'static, u16)> {
+    let (fd, mtu) = proxy.acquire_notify(GattOptions::new()).await?;
+    let fd: std::os::fd::OwnedFd = fd.into();
+    // A SOCK_SEQPACKET socket: every read returns exactly one notification.
+    let socket = std::os::unix::net::UnixStream::from(fd);
+    socket
+        .set_nonblocking(true)
+        .map_err(|e| zbus::Error::InputOutput(Arc::new(e)))?;
+    let socket = tokio::net::UnixStream::from_std(socket)
+        .map_err(|e| zbus::Error::InputOutput(Arc::new(e)))?;
+    let buf = vec![0u8; usize::from(mtu.max(23))];
+    Ok((
+        Box::pin(futures::stream::unfold(
+            (socket, buf),
+            |(socket, mut buf)| async move {
+                loop {
+                    if socket.readable().await.is_err() {
+                        return None;
+                    }
+                    match socket.try_read(&mut buf) {
+                        Ok(0) => return None, // BlueZ closed it (disconnected)
+                        Ok(n) => {
+                            let value = buf[..n].to_vec();
+                            return Some((value, (socket, buf)));
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                        Err(_) => return None,
+                    }
+                }
+            },
+        )),
+        mtu,
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -819,6 +952,53 @@ pub async fn local_characteristic_value(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn changed_signal(
+        endian: zbus::zvariant::Endian,
+        props: HashMap<&str, Value<'_>>,
+    ) -> zbus::Message {
+        zbus::Message::signal(
+            "/org/bluez/hci0/dev_00_11_22_33_44_55/service0001/char0002",
+            "org.freedesktop.DBus.Properties",
+            "PropertiesChanged",
+        )
+        .unwrap()
+        .endian(endian)
+        .build(&("org.bluez.GattCharacteristic1", props, Vec::<&str>::new()))
+        .unwrap()
+    }
+
+    #[test]
+    fn notification_fast_path_matches_the_general_decoder() {
+        use zbus::zvariant::Endian;
+        for endian in [Endian::Little, Endian::Big] {
+            for len in [0usize, 1, 3, 4, 20, 244, 512] {
+                let value: Vec<u8> = (0..len).map(|i| i as u8).collect();
+                let msg = changed_signal(
+                    endian,
+                    HashMap::from([("Value", Value::from(value.clone()))]),
+                );
+                assert_eq!(
+                    notification_value_fast(&msg, &msg.body()),
+                    Some(value),
+                    "{endian:?} {len}"
+                );
+            }
+            // Anything else is left to the general decoder.
+            let other = changed_signal(endian, HashMap::from([("Notifying", Value::from(true))]));
+            assert_eq!(notification_value_fast(&other, &other.body()), None);
+            let two = changed_signal(
+                endian,
+                HashMap::from([
+                    ("Value", Value::from(vec![1u8, 2])),
+                    ("Notifying", Value::from(true)),
+                ]),
+            );
+            assert_eq!(notification_value_fast(&two, &two.body()), None);
+            let not_bytes = changed_signal(endian, HashMap::from([("Value", Value::from("x"))]));
+            assert_eq!(notification_value_fast(&not_bytes, &not_bytes.body()), None);
+        }
+    }
 
     fn opts(offset: u16) -> GattOptions {
         HashMap::from([("offset".to_string(), OwnedValue::from(offset))])
