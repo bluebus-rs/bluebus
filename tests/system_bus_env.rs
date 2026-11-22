@@ -25,8 +25,17 @@ async fn path_less_helpers_use_the_system_bus() {
     assert_eq!(devices[0].alias, "Other");
     bluebus::set_adapter_path(bluebus::DEFAULT_ADAPTER_PATH);
 
+    // The high-level session honours DBUS_SYSTEM_BUS_ADDRESS too.
+    let session = bluebus::ble::Session::new().await.unwrap();
+    assert_eq!(session.adapters().await.unwrap().len(), 2);
+    assert_eq!(session.default_adapter().await.unwrap().name(), "hci0");
+
     drop(bz);
     // Errors become an empty list in the infallible variant.
     assert!(bluebus::list_devices().await.is_empty());
     assert!(bluebus::list_system_devices().await.is_err());
+    assert!(matches!(
+        bluebus::ble::Session::new().await,
+        Err(bluebus::ble::Error::Bus(_))
+    ));
 }

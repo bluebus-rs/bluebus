@@ -141,6 +141,8 @@ pub struct State {
     pub advertisements: HashMap<(String, String), HashMap<String, OwnedValue>>,
     pub discovery_filter: Option<HashMap<String, OwnedValue>>,
     pub pair_requests: Vec<String>,
+    /// Remote characteristic writes: (path, value, `type` option).
+    pub remote_writes: Vec<(String, Vec<u8>, Option<String>)>,
 }
 
 pub type SharedState = Arc<Mutex<State>>;
@@ -823,6 +825,7 @@ impl MockDevice {
                     service: svc.clone(),
                     value: vec![87],
                     notifying: false,
+                    state: self.state.clone(),
                 },
             )
             .await?;
@@ -1083,6 +1086,7 @@ pub struct MockRemoteCharacteristic {
     pub service: String,
     pub value: Vec<u8>,
     pub notifying: bool,
+    pub state: SharedState,
 }
 
 fn offset(options: &HashMap<String, OwnedValue>) -> usize {
@@ -1107,12 +1111,19 @@ impl MockRemoteCharacteristic {
         options: HashMap<String, OwnedValue>,
         #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
     ) -> Result<(), BluezError> {
+        let mut kind = None;
         if let Some(t) = options.get("type") {
             let t: String = t.try_clone().unwrap().try_into().unwrap();
             if !["command", "request", "reliable"].contains(&t.as_str()) {
                 return Err(BluezError::InvalidArguments(format!("bad write type {t}")));
             }
+            kind = Some(t);
         }
+        self.state.lock().unwrap().remote_writes.push((
+            emitter.path().to_string(),
+            value.clone(),
+            kind,
+        ));
         self.value = value;
         self.value_changed(&emitter).await?;
         Ok(())
@@ -1183,6 +1194,34 @@ pub async fn remote_notify(server: &Connection, chr_path: &str, value: Vec<u8>) 
         .value_changed(iface.signal_emitter())
         .await
         .unwrap();
+}
+
+/// Simulates a new advertisement changing the RSSI of a discovered device.
+pub async fn set_device_rssi(server: &Connection, device_path: &str, rssi: i16) {
+    let iface = server
+        .object_server()
+        .interface::<_, MockDevice>(device_path)
+        .await
+        .unwrap();
+    iface.get_mut().await.spec.rssi = Some(rssi);
+    iface
+        .get()
+        .await
+        .r_s_s_i_changed(iface.signal_emitter())
+        .await
+        .unwrap();
+}
+
+/// Whether the remote (mock) characteristic has notifications enabled.
+pub async fn remote_notifying(server: &Connection, chr_path: &str) -> bool {
+    server
+        .object_server()
+        .interface::<_, MockRemoteCharacteristic>(chr_path)
+        .await
+        .unwrap()
+        .get()
+        .await
+        .notifying
 }
 
 pub struct MockRemoteDescriptor {

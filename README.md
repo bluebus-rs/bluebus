@@ -26,8 +26,57 @@ bluebus = "0.1.11"
 tokio = { version = "1", features = ["full"] }
 ```
 
+## Easy API
+
+`bluebus::ble` wraps everything below in a few cloneable handles
+(`Session`, `Adapter`, `Device`, `Peripheral`), with characteristics
+addressed by UUID (`"2a19"` or full form) and one error type:
+
+```rust,no_run
+use std::time::Duration;
+use bluebus::ble::{Advertisement, Characteristic, ScanFilter, Service, Session, WriteType};
+use futures::StreamExt;
+
+# async fn run() -> bluebus::ble::Result<()> {
+let adapter = Session::new().await?.default_adapter().await?;
+adapter.power_on().await?;
+
+// Central: scan, connect, read, write, notifications.
+for d in adapter.scan(ScanFilter::new(), Duration::from_secs(5)).await? {
+    println!("{} {:?} rssi={:?}", d.address, d.name, d.rssi);
+}
+let device = adapter
+    .find_device(ScanFilter::new().name_prefix("Sensor"), Duration::from_secs(10))
+    .await?;
+device.connect(Duration::from_secs(20)).await?; // waits for service discovery
+println!("battery: {:?}", device.read("2a19").await?);
+device.write("2a06", vec![1], WriteType::WithResponse).await?;
+let mut values = device.notifications("2a37").await?; // stops on drop
+while let Some(v) = values.next().await {
+    println!("{v:02x?}");
+}
+
+// Peripheral: GATT server + advertisement.
+let peripheral = adapter
+    .peripheral()
+    .service(Service::new("180f").characteristic(
+        Characteristic::new("2a19").read().notify().value(vec![100]),
+    ))
+    .advertise(Advertisement::new().local_name("my-sensor").service_uuid("180f"))
+    .start()
+    .await?;
+peripheral.notify("2a19", vec![99]).await?;
+peripheral.stop().await?;
+# Ok(()) }
+```
+
+Pairing: `session.set_agent(AgentCapability::NoInputNoOutput, AutoAcceptAgent)`
+then `device.pair()`. The rest of this page shows the low-level API, which
+stays available (`Session::connection()` gives its D-Bus connection).
+
 ## Contents
 
+- [Easy API](#easy-api)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Quick start: scan for BLE devices](#quick-start-scan-for-ble-devices)
@@ -297,6 +346,7 @@ loop {
 | GATT server | `GattService`, `GattCharacteristic`, `GattDescriptor`, `register_gatt_application()`, `set_write_handler()`, `notify_characteristic_value()` |
 | Advertising | `LEAdvertisementProperties`, `register_advertisement()`, `register_advertisement_at()`, `LEAdvertisingManager1Proxy` |
 | Events | `Monitor` |
+| **Easy API** | `ble::Session`, `ble::Adapter`, `ble::Device`, `ble::Peripheral`, `ble::ScanFilter` |
 
 Functions without an adapter argument use the adapter set with
 `set_adapter_path` (default `/org/bluez/hci0`). Each of them has an `_at`
@@ -377,6 +427,7 @@ cargo run --example hardware_smoke -- hci1
 docker build -t bluebus-btvirt tools/btvirt
 docker run -d --rm --name bluebus-vhci --privileged bluebus-btvirt -l2
 cargo run --example virtual_e2e -- hci1 hci2
+cargo run --example ble_e2e -- hci1 hci2      # the same with bluebus::ble
 docker stop bluebus-vhci
 ```
 

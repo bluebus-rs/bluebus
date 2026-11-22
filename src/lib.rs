@@ -40,6 +40,8 @@
 //!
 //! ## Modules
 //!
+//! - [`ble`] – **high-level, easy API** (sessions, scanning, GATT client and
+//!   server by UUID); start here.
 //! - [`adapter`] – adapters: power, discovery, filters.
 //! - [`device`] – remote devices: connect, pair, trust, battery.
 //! - [`agent`] / [`agent_manager`] – pairing agents.
@@ -50,7 +52,7 @@
 //! - [`object_manager`] – BlueZ object tree.
 //! - [`paths`] – well-known names and configurable paths.
 //!
-//! All items are re-exported at the crate root.
+//! All items except those of [`ble`] are re-exported at the crate root.
 
 /// Manages Bluetooth adapter interactions.
 pub mod adapter;
@@ -58,6 +60,7 @@ pub mod adapter;
 pub mod agent;
 /// Manages agent registrations.
 pub mod agent_manager;
+pub mod ble;
 /// Caches Bluetooth device states.
 pub mod cache;
 /// Handles Bluetooth connections.
