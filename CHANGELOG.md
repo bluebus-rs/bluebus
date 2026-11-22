@@ -2,7 +2,31 @@
 
 ## Unreleased
 
+Additive only; backward compatible with 0.1.11 and 0.1.10.
+
 ### Added
+- **`bluebus::ble`: a high-level, easy API** (not re-exported at the crate
+  root, where `Adapter`/`Device` are the zbus proxies). Cloneable,
+  `Send + Sync + 'static` handles with plain-data results and a single
+  `ble::Error` (`Bus`, `Timeout`, `NotFound`, `InvalidArgument`):
+  - `Session` (`new`, `with_connection`, `adapters`, `adapter`,
+    `default_adapter`, `set_agent`, `remove_agent`);
+  - `Adapter` (`power_on`/`power_off`, `scan`, `scan_stream` with a guard that
+    stops discovery on drop, `find_device`, `device`, `devices`,
+    `remove_device`, `peripheral`) and the `ScanFilter` builder (transport,
+    exact/prefix name, address, service UUIDs, minimum RSSI, duplicate data);
+  - `Device` (`connect` waiting for `ServicesResolved`, `disconnect`, `pair`,
+    `trust`, `services`, `read`/`write` with `WriteType`, `notifications`
+    stream that stops on drop and is shared between subscribers,
+    `read_descriptor`/`write_descriptor`, `battery_level`, `rssi`, `info`);
+    the GATT database is cached per connection and refreshed when stale;
+  - `PeripheralBuilder` → `Peripheral`: GATT services, characteristics
+    (flags, initial value, write callback, read-only descriptors) and an
+    advertisement on unique object paths, with `set_value`, `notify`,
+    `value`, `is_notifying` and `stop` (also best effort on drop);
+  - `AutoAcceptAgent`, `PasskeyAgent`; `normalize_uuid` (16/32/128-bit forms).
+- `examples/ble_e2e.rs`: the virtual-controller end-to-end test written with
+  `bluebus::ble` only.
 - `characteristic_notifications_acquired`: notifications through BlueZ'
   `AcquireNotify` socket instead of D-Bus signals. 5 000 notifications
   arrive in ~85 ms instead of ~420 ms and cost ~7 ms of CPU instead of ~70 ms
