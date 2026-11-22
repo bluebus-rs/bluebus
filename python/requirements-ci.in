@@ -1,0 +1,5 @@
+# Test dependencies for CI. Regenerate requirements-ci.txt with:
+#   uv pip compile requirements-ci.in --generate-hashes --python-version 3.12 --python-platform linux -o requirements-ci.txt
+maturin
+pytest
+pytest-asyncio

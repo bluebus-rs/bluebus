@@ -32,6 +32,26 @@ Additive only; backward compatible with 0.1.11 and 0.1.10.
   arrive in ~85 ms instead of ~420 ms and cost ~7 ms of CPU instead of ~70 ms
   (virtual controllers, see `benchmarks/`).
 
+- **Python bindings** (`python/`, PyPI package `bluebus`, crate
+  `bluebus-python` in a new cargo workspace; the `bluebus` package itself is
+  unchanged): PyO3 + `pyo3-async-runtimes` (tokio), abi3 wheels for Python
+  3.9+, Linux only. Every I/O method returns an asyncio awaitable:
+  `Session` (`await Session.new()` / `await Session()`, `adapters`,
+  `adapter`, `set_agent("auto" | passkey=…)`), `Adapter` (`scan`,
+  `scan_stream` async iterator, `find_device`, …), `Device` (`connected()`
+  async context manager, `read`/`write`, `notifications` async iterator,
+  `services`, `pair`, …) and the peripheral builders (`Service`,
+  `Characteristic` with `on_write` callbacks run on the event loop,
+  `Advertisement`, `Peripheral`). Read-only `DeviceInfo`/`ServiceInfo`/…
+  data classes, type stubs (`py.typed`) and the exceptions `BluebusError`,
+  `BluebusTimeout` (a `TimeoutError`), `NotFound`, `InvalidArgument` and
+  `DBusError` (`.name`). Tested with pytest against the mock BlueZ;
+  `python/examples/e2e.py` mirrors `ble_e2e.rs`; CI in
+  `.github/workflows/python.yml` (PyPI trusted publishing on `py-v*` tags).
+- `examples/mock_bluez.rs`: the mock `org.bluez` of the test suite as a
+  standalone process (prints the private bus address, takes commands on
+  stdin) for tests in other languages.
+
 ### Changed
 - Minimum supported Rust version is now declared (`rust-version = "1.89"`)
   and checked in CI; the current dependency versions need 1.89.

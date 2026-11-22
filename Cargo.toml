@@ -23,3 +23,7 @@ zbus = { version = "5.5.0", default-features = false, features = ["tokio"] }
 name = "bluebus"
 path = "src/lib.rs"
 crate-type = ["lib"]
+
+[workspace]
+members = [".", "python"]
+exclude = ["benchmarks"]

@@ -74,9 +74,39 @@ Pairing: `session.set_agent(AgentCapability::NoInputNoOutput, AutoAcceptAgent)`
 then `device.pair()`. The rest of this page shows the low-level API, which
 stays available (`Session::connection()` gives its D-Bus connection).
 
+## Python
+
+The same API is available from Python (asyncio, Linux only) as the
+[`bluebus`](https://pypi.org/project/bluebus/) package, built with PyO3 from
+[`python/`](python/):
+
+```sh
+pip install bluebus
+```
+
+```python
+import asyncio, bluebus
+
+async def main():
+    adapter = await (await bluebus.Session.new()).default_adapter()
+    await adapter.power_on()
+    device = await adapter.find_device(name="Sensor", timeout=10.0)
+    async with device.connected(timeout=20.0):
+        print(await device.read("2a19"))
+        async for value in device.notifications("2a37"):
+            print(value.hex())
+
+asyncio.run(main())
+```
+
+Peripherals (`adapter.peripheral()…start()`, `on_write` callbacks on the
+event loop), advertising and pairing agents (`session.set_agent("auto")`)
+are included; see [python/README.md](python/README.md).
+
 ## Contents
 
 - [Easy API](#easy-api)
+- [Python](#python)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Quick start: scan for BLE devices](#quick-start-scan-for-ble-devices)

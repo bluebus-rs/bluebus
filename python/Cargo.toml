@@ -1,0 +1,19 @@
+[package]
+name = "bluebus-python"
+version = "0.1.0"
+edition = "2021"
+description = "Python bindings of bluebus: asyncio Bluetooth Low Energy for Linux over BlueZ D-Bus."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/bluebus-rs/bluebus"
+publish = false
+
+[lib]
+name = "_bluebus"
+crate-type = ["cdylib"]
+
+[dependencies]
+bluebus = { path = ".." }
+futures = "0.3.31"
+pyo3 = { version = "0.30", features = ["abi3-py39"] }
+pyo3-async-runtimes = { version = "0.30", features = ["tokio-runtime"] }
+tokio = { version = "1.43.0", features = ["full"] }
