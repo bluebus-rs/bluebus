@@ -404,6 +404,42 @@ async fn run(p_path: &str, c_path: &str) -> Result<usize, String> {
         "n1 n2 n3"
     );
     chr.stop_notify().await.map_err(|x| x.to_string())?;
+    drop(notes);
+
+    // Notifications through AcquireNotify (a socket instead of D-Bus).
+    let (mut notes, mtu) = characteristic_notifications_acquired(&chr)
+        .await
+        .map_err(e)?;
+    within("Notifying on peripheral (acquired)", 10, async {
+        loop {
+            let iface = pconn
+                .object_server()
+                .interface::<_, GattCharacteristic>(chr_path.as_str())
+                .await
+                .unwrap();
+            if iface.get().await.notifying {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await?;
+    for value in [b"a1".to_vec(), b"a2".to_vec(), b"a3".to_vec()] {
+        notify_characteristic_value(&pconn, &chr_path, value.clone())
+            .await
+            .map_err(e)?;
+        let got = within("acquired notification", 10, notes.next())
+            .await?
+            .ok_or("socket closed")?;
+        if got != value {
+            return Err(format!("acquired notification: {got:?}"));
+        }
+    }
+    ok!(
+        "AcquireNotify socket → central stream (3 in order)",
+        format!("a1 a2 a3, mtu {mtu}")
+    );
+    drop(notes); // closing the socket stops notifications
 
     // Pairing (Just Works) with our agent as default on both sides.
     println!("\n[pairing]");

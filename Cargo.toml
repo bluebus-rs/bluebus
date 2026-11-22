@@ -17,7 +17,7 @@ futures = "0.3.31"
 lazy_static = "1.5.0"
 tokio = { version = "1.43.0", features = ["full"] }
 tracing = "0.1"
-zbus = "5.5.0"
+zbus = { version = "5.5.0", default-features = false, features = ["tokio"] }
 
 [lib]
 name = "bluebus"

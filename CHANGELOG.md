@@ -2,9 +2,24 @@
 
 ## Unreleased
 
+### Added
+- `characteristic_notifications_acquired`: notifications through BlueZ'
+  `AcquireNotify` socket instead of D-Bus signals. 5 000 notifications
+  arrive in ~85 ms instead of ~420 ms and cost ~7 ms of CPU instead of ~70 ms
+  (virtual controllers, see `benchmarks/`).
+
 ### Changed
 - Minimum supported Rust version is now declared (`rust-version = "1.89"`)
   and checked in CI; the current dependency versions need 1.89.
+- zbus runs on the tokio runtime (`features = ["tokio"]`) instead of its own
+  async-io executor thread: about 35 % less CPU for GATT reads and writes.
+  bluebus already required tokio.
+- `characteristic_notifications` reads the notified value straight from the
+  D-Bus message (about 15 % less CPU per notification), with the general
+  decoder as fallback.
+- `gatt_characteristic_proxy` caches properties lazily: proxies used only to
+  read, write or receive notifications no longer re-parse every
+  notification into the property cache.
 
 ## 0.1.11
 
