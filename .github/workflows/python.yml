@@ -1,0 +1,107 @@
+name: Python package
+# Tests the Python bindings (python/) against the mock BlueZ on every push;
+# on a tag `py-vX.Y.Z` builds Linux wheels (abi3: one wheel per
+# architecture for Python 3.9+) and an sdist and publishes them to PyPI
+# (trusted publishing: add this repository, this workflow and the `pypi`
+# environment as a publisher of the `bluebus` project on PyPI once).
+on:
+  push:
+    # Branch pushes run the tests when these paths change; tags build wheels
+    # (path filters do not apply to tags).
+    branches: ["**"]
+    paths:
+      - "python/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "examples/mock_bluez.rs"
+      - "tests/common/**"
+      - ".github/workflows/python.yml"
+    tags: ["py-v*"]
+  pull_request:
+    paths:
+      - "python/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "examples/mock_bluez.rs"
+      - "tests/common/**"
+      - ".github/workflows/python.yml"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Build the mock BlueZ
+        run: cargo build --example mock_bluez
+      - name: Build and test
+        working-directory: python
+        env:
+          BLUEBUS_MOCK: ${{ github.workspace }}/target/debug/examples/mock_bluez
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --require-hashes -r requirements-ci.txt
+          .venv/bin/maturin develop --release
+          .venv/bin/python -m pytest -q tests
+
+  wheels:
+    if: startsWith(github.ref, 'refs/tags/py-v')
+    needs: test
+    strategy:
+      matrix:
+        target: [x86_64, aarch64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: python
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: auto
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wheels-linux-${{ matrix.target }}
+          path: python/dist
+
+  sdist:
+    if: startsWith(github.ref, 'refs/tags/py-v')
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: python
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sdist
+          path: python/dist
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/py-v')
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

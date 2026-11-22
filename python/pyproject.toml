@@ -1,0 +1,42 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "bluebus"
+version = "0.1.0"
+description = "Asyncio Bluetooth Low Energy for Linux: scan, connect, GATT client and server, advertising and pairing through BlueZ over D-Bus (Rust core)."
+readme = "README.md"
+license = { text = "MIT OR Apache-2.0" }
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["bluetooth", "ble", "bluez", "gatt", "asyncio", "dbus", "peripheral"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Communications",
+    "Topic :: System :: Hardware",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/bluebus-rs/bluebus"
+Documentation = "https://github.com/bluebus-rs/bluebus/tree/main/python"
+Repository = "https://github.com/bluebus-rs/bluebus"
+Changelog = "https://github.com/bluebus-rs/bluebus/blob/main/CHANGELOG.md"
+
+[tool.maturin]
+python-source = "python"
+module-name = "bluebus._bluebus"
+features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
