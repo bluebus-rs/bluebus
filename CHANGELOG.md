@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Minimum supported Rust version is now declared (`rust-version = "1.89"`)
+  and checked in CI; the current dependency versions need 1.89.
+
 ## 0.1.11
 
 Backward compatible with 0.1.10 (verified with `cargo semver-checks` and
