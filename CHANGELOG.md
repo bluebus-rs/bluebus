@@ -52,6 +52,23 @@ Additive only; backward compatible with 0.1.11 and 0.1.10.
   standalone process (prints the private bus address, takes commands on
   stdin) for tests in other languages.
 
+- **C and C++ API** (`capi/`, crate `bluebus-c` 0.1.0, library `libbluebus`
+  shared and static; the repository is now a cargo workspace, the `bluebus`
+  package is unchanged): blocking, thread-safe C functions over
+  `bluebus::ble` in `capi/include/bluebus.h` (opaque handles for session,
+  adapter, device, scan, notifications, peripheral builder and peripheral;
+  `bluebus_status` codes with thread-local `bluebus_last_error` /
+  `bluebus_last_dbus_error_name`; scanning blocking or with callbacks,
+  connect, pair, trust, GATT read/write/descriptors, flattened service
+  list, notifications as callbacks or pulled with a timeout, a peripheral
+  builder with write callbacks, auto-accept and passkey agents), plus the
+  header-only C++17 wrapper `bluebus.hpp`. Panics never cross the C
+  boundary. CMake project exporting `bluebus::bluebus` (also as an
+  installed, relocatable `find_package` config), pkg-config `bluebus.pc`,
+  examples `scan.c`, `peripheral.c` and `central.cpp`, tests against the
+  mock BlueZ from Rust, C and C++, a `c-api` CI job and a `c-v*` release
+  workflow with prebuilt Linux x86_64 and aarch64 archives.
+
 ### Changed
 - Minimum supported Rust version is now declared (`rust-version = "1.89"`)
   and checked in CI; the current dependency versions need 1.89.

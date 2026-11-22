@@ -1,0 +1,32 @@
+[package]
+name = "bluebus-c"
+version = "0.1.0"
+edition = "2021"
+description = "C and C++ API of bluebus (include/bluebus.h, include/bluebus.hpp): BLE on Linux through BlueZ."
+authors = ["Samet Eraslan <absameteraslan@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/bluebus-rs/bluebus"
+publish = false
+
+[lib]
+# libbluebus.so and libbluebus.a
+name = "bluebus"
+crate-type = ["cdylib", "staticlib"]
+# The tests in capi/tests compile src/lib.rs into their own binaries.
+test = false
+doctest = false
+doc = false
+
+[dependencies]
+bluebus = { path = ".." }
+futures = "0.3.31"
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "time", "sync", "macros"] }
+
+[dev-dependencies]
+tokio = { version = "1.43.0", features = ["full"] }
+zbus = "5.5.0"
+
+# Runs a program against the mock BlueZ of the tests (used by CTest).
+[[example]]
+name = "mock_bluez"
+path = "tests/support/mock_bluez.rs"
