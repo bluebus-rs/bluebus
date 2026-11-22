@@ -8,6 +8,7 @@ mod ffi;
 mod support;
 
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
+use std::mem::MaybeUninit;
 use std::ptr::{self, null, null_mut};
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -240,8 +241,14 @@ fn session_and_adapters() {
         let mut session = null_mut();
         ok(bluebus_session_new(&mut session));
 
-        let (mut infos, mut n) = (null_mut(), 0usize);
-        ok(bluebus_session_adapters(session, &mut infos, &mut n));
+        // MaybeUninit out-parameters: the C call fills them.
+        let (mut infos, mut n) = (MaybeUninit::uninit(), 0usize);
+        ok(bluebus_session_adapters(
+            session,
+            infos.as_mut_ptr(),
+            &mut n,
+        ));
+        let infos = infos.assume_init();
         assert_eq!(n, 2);
         let names: Vec<_> = (0..n)
             .map(|k| string((*infos.add(k)).name).unwrap())
@@ -343,14 +350,15 @@ fn blocking_scan_and_filters() {
         ok(bluebus_session_default_adapter(session, &mut adapter));
         ok(bluebus_adapter_power_on(adapter));
 
-        let (mut found, mut n) = (null_mut(), 0usize);
+        let (mut found, mut n) = (MaybeUninit::uninit(), 0usize);
         ok(bluebus_adapter_scan(
             adapter,
             null(),
             100,
-            &mut found,
+            found.as_mut_ptr(),
             &mut n,
         ));
+        let mut found = found.assume_init();
         assert_eq!(n, 2);
         {
             let d = &*found;
@@ -521,8 +529,13 @@ fn callback_scan() {
         ok(bluebus_scan_stop(scan));
         let mut discovering = true;
         eventually("discovery stopped", || {
-            let (mut infos, mut n) = (null_mut(), 0usize);
-            ok(bluebus_session_adapters(session, &mut infos, &mut n));
+            let (mut infos, mut n) = (MaybeUninit::uninit(), 0usize);
+            ok(bluebus_session_adapters(
+                session,
+                infos.as_mut_ptr(),
+                &mut n,
+            ));
+            let infos = infos.assume_init();
             discovering = (*infos).discovering;
             bluebus_adapter_info_free(infos, n);
             !discovering
@@ -567,8 +580,9 @@ fn connect_read_write_services() {
         ok(bluebus_device_is_connected(c.device, &mut connected));
         assert!(connected);
 
-        let mut info = null_mut();
-        ok(bluebus_device_get_info(c.device, &mut info));
+        let mut info = MaybeUninit::uninit();
+        ok(bluebus_device_get_info(c.device, info.as_mut_ptr()));
+        let mut info = info.assume_init();
         assert!((*info).connected && (*info).services_resolved);
         assert_eq!(string((*info).address_type).as_deref(), Some("public"));
         bluebus_device_info_free(info, 1);
