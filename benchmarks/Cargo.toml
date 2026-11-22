@@ -1,0 +1,9 @@
+# Benchmark programs; a separate workspace so the bluebus crate's
+# dependencies stay untouched. See README.md.
+[workspace]
+resolver = "2"
+members = ["peripheral", "clients/bluebus", "clients/bluer", "clients/btleplug"]
+
+[profile.release]
+debug = false
+strip = true
