@@ -3,7 +3,12 @@
 [![crates.io](https://img.shields.io/crates/v/bluebus.svg)](https://crates.io/crates/bluebus)
 [![docs.rs](https://docs.rs/bluebus/badge.svg)](https://docs.rs/bluebus)
 [![downloads](https://img.shields.io/crates/d/bluebus)](https://crates.io/crates/bluebus)
+[![CI](https://github.com/bluebus-rs/bluebus/actions/workflows/ci.yml/badge.svg)](https://github.com/bluebus-rs/bluebus/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/bluebus-rs/bluebus/actions/workflows/codeql.yml/badge.svg)](https://github.com/bluebus-rs/bluebus/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bluebus-rs/bluebus/badge)](https://scorecard.dev/viewer/?uri=github.com/bluebus-rs/bluebus)
+[![MSRV](https://img.shields.io/badge/MSRV-1.89-blue)](Cargo.toml)
 [![license](https://img.shields.io/crates/l/bluebus)](#license)
+[![GitHub stars](https://img.shields.io/github/stars/bluebus-rs/bluebus?style=social)](https://github.com/bluebus-rs/bluebus/stargazers)
 
 **bluebus** is an async Rust library for Bluetooth Classic and Bluetooth Low
 Energy (BLE) on Linux. It talks to the **BlueZ** Bluetooth daemon over
@@ -66,7 +71,7 @@ Everything BlueZ exposes is also reachable through the generated
   default; on servers or headless systems, add the user to the `bluetooth`
   group or adjust the D-Bus policy.
 - A `tokio` runtime.
-- **Rust 1.87** or newer with the current dependency versions.
+- **Rust 1.89** or newer (checked in CI).
 
 ## Quick start: scan for BLE devices
 
@@ -385,8 +390,8 @@ in 0.1.11.
 ## Contributing
 
 Issues and pull requests are welcome on
-[GitHub](https://github.com/bluebus-rs/bluebus). Please run `cargo fmt`,
-`cargo clippy --all-targets` and `cargo test` before opening a pull request.
+[GitHub](https://github.com/bluebus-rs/bluebus); see
+[CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
 
 ## License
 

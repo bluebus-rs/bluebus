@@ -1,0 +1,26 @@
+name: Bug report
+description: Something fails, hangs or behaves unexpectedly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead (error messages, logs).
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Code to reproduce
+      description: The smallest code that shows the problem.
+      render: rust
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versions and platform
+      placeholder: bluebus 0.1.11, BlueZ 5.72, Ubuntu 24.04, Intel AX211
+    validations:
+      required: true
