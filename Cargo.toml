@@ -25,5 +25,5 @@ path = "src/lib.rs"
 crate-type = ["lib"]
 
 [workspace]
-members = [".", "python"]
+members = [".", "python", "capi"]
 exclude = ["benchmarks"]

@@ -41,3 +41,43 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build and test on the minimum supported Rust version
         run: cargo test
+
+  c-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Clippy (bluebus-c)
+        run: cargo clippy -p bluebus-c --all-targets -- -D warnings
+      - name: Rust tests of the C API (mock BlueZ, header, C/C++ programs)
+        run: cargo test -p bluebus-c --verbose
+      - name: CMake configure and build (library, tests, examples)
+        run: |
+          cmake -S capi -B build-capi -DBLUEBUS_TESTS=ON -DCMAKE_INSTALL_PREFIX="$PWD/install-capi"
+          cmake --build build-capi -j "$(nproc)"
+      - name: CTest (C and C++ tests against the mock BlueZ)
+        run: ctest --test-dir build-capi --output-on-failure
+      - name: Install, then build against the CMake package and pkg-config
+        run: |
+          cmake --install build-capi
+          mkdir consumer
+          cat > consumer/CMakeLists.txt <<'CMAKE'
+          cmake_minimum_required(VERSION 3.16)
+          project(consumer C CXX)
+          find_package(bluebus 0.1 REQUIRED)
+          add_executable(scan ../capi/examples/scan.c)
+          target_link_libraries(scan PRIVATE bluebus::bluebus)
+          add_executable(central ../capi/examples/central.cpp)
+          set_target_properties(central PROPERTIES CXX_STANDARD 17)
+          target_link_libraries(central PRIVATE bluebus::static)
+          CMAKE
+          cmake -S consumer -B consumer/build -DCMAKE_PREFIX_PATH="$PWD/install-capi"
+          cmake --build consumer/build
+          export PKG_CONFIG_PATH="$PWD/install-capi/lib/pkgconfig"
+          cc -std=c99 capi/examples/peripheral.c $(pkg-config --cflags --libs bluebus) -o consumer/peripheral
+          cc -std=c99 capi/examples/scan.c $(pkg-config --cflags bluebus) install-capi/lib/libbluebus.a \
+            $(pkg-config --libs-only-l --static bluebus | sed 's/-lbluebus//') -o consumer/scan-static

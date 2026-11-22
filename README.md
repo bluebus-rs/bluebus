@@ -103,10 +103,35 @@ Peripherals (`adapter.peripheral()…start()`, `on_write` callbacks on the
 event loop), advertising and pairing agents (`session.set_agent("auto")`)
 are included; see [python/README.md](python/README.md).
 
+## C and C++
+
+[`capi/`](capi/README.md) exposes `bluebus::ble` as a C library
+(`libbluebus.so` / `libbluebus.a`, header `bluebus.h`) with a header-only
+C++17 wrapper (`bluebus.hpp`: RAII handles, `std::vector<uint8_t>`,
+`std::function` callbacks, `bluebus::Error` exceptions). Calls block and
+are thread-safe; callbacks run on library threads.
+
+```c
+bluebus_session *s; bluebus_adapter *a; bluebus_device *d;
+bluebus_session_new(&s);
+bluebus_session_default_adapter(s, &a);
+bluebus_adapter_power_on(a);
+bluebus_scan_filter f = {0};
+f.name_prefix = "Sensor";
+bluebus_adapter_find_device(a, &f, 10000, &d);
+bluebus_device_connect(d, 20000);
+```
+
+Build it with CMake (`add_subdirectory(capi)` or `find_package(bluebus)`,
+target `bluebus::bluebus`), pkg-config (`bluebus.pc`) or plain
+`cargo build --release -p bluebus-c`. Prebuilt Linux x86_64 / aarch64
+archives are attached to the `c-v*` releases.
+
 ## Contents
 
 - [Easy API](#easy-api)
 - [Python](#python)
+- [C and C++](#c-and-c)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Quick start: scan for BLE devices](#quick-start-scan-for-ble-devices)

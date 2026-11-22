@@ -1,0 +1,36 @@
+# CMake package of the bluebus C/C++ library (relocatable).
+#
+#   find_package(bluebus 0.1 REQUIRED)
+#   target_link_libraries(app PRIVATE bluebus::bluebus)   # shared library
+#   target_link_libraries(app PRIVATE bluebus::static)    # static library
+#
+# Set BLUEBUS_STATIC to ON before find_package() to make bluebus::bluebus
+# the static library.
+@PACKAGE_INIT@
+
+set_and_check(BLUEBUS_INCLUDE_DIR "@PACKAGE_BLUEBUS_INSTALL_INCLUDEDIR@")
+set_and_check(BLUEBUS_LIBRARY_DIR "@PACKAGE_BLUEBUS_INSTALL_LIBDIR@")
+
+if(NOT TARGET bluebus::shared)
+  add_library(bluebus::shared SHARED IMPORTED)
+  set_target_properties(bluebus::shared PROPERTIES
+    IMPORTED_LOCATION "${BLUEBUS_LIBRARY_DIR}/libbluebus.so"
+    IMPORTED_SONAME "libbluebus.so"
+    INTERFACE_INCLUDE_DIRECTORIES "${BLUEBUS_INCLUDE_DIR}")
+
+  add_library(bluebus::static STATIC IMPORTED)
+  set_target_properties(bluebus::static PROPERTIES
+    IMPORTED_LOCATION "${BLUEBUS_LIBRARY_DIR}/libbluebus.a"
+    INTERFACE_INCLUDE_DIRECTORIES "${BLUEBUS_INCLUDE_DIR}"
+    INTERFACE_LINK_LIBRARIES "pthread;dl;m;rt")
+
+  add_library(bluebus::bluebus INTERFACE IMPORTED)
+  if(BLUEBUS_STATIC)
+    set_target_properties(bluebus::bluebus PROPERTIES INTERFACE_LINK_LIBRARIES bluebus::static)
+  else()
+    set_target_properties(bluebus::bluebus PROPERTIES INTERFACE_LINK_LIBRARIES bluebus::shared)
+  endif()
+endif()
+
+set(bluebus_LIBRARIES bluebus::bluebus)
+check_required_components(bluebus)

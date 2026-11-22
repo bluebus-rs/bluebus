@@ -1,0 +1,11 @@
+prefix=${pcfiledir}/@BLUEBUS_PC_PREFIX_REL@
+libdir=${prefix}/@BLUEBUS_PC_LIBDIR@
+includedir=${prefix}/@BLUEBUS_PC_INCLUDEDIR@
+
+Name: bluebus
+Description: Bluetooth Low Energy on Linux through BlueZ (C/C++ API of bluebus)
+Version: @PROJECT_VERSION@
+URL: https://github.com/bluebus-rs/bluebus
+Libs: -L${libdir} -lbluebus
+Libs.private: @BLUEBUS_PC_LIBS_PRIVATE@
+Cflags: -I${includedir}

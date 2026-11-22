@@ -1,0 +1,84 @@
+# Prebuilt C/C++ libraries (capi/): pushed tags `c-v*` build the shared and
+# static library for Linux x86_64 and aarch64 (glibc), test them against the
+# mock BlueZ, and attach archives (include/, lib/ with the CMake package and
+# pkg-config file, README, LICENSE) to the GitHub release of the tag.
+name: C/C++ libraries
+
+on:
+  push:
+    tags: ["c-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, name: linux-x86_64 }
+          - { os: ubuntu-22.04-arm, name: linux-aarch64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
+      - name: Install dbus-daemon (for the tests)
+        run: command -v dbus-daemon || (sudo apt-get update && sudo apt-get install -y dbus)
+      - name: Build, test and install with CMake
+        run: |
+          d="$PWD/bluebus-c-${{ matrix.name }}"
+          cmake -S capi -B build -DCMAKE_BUILD_TYPE=Release -DBLUEBUS_TESTS=ON -DCMAKE_INSTALL_PREFIX="$d"
+          cmake --build build -j "$(nproc)"
+          ctest --test-dir build --output-on-failure
+          cmake --install build
+          strip --strip-unneeded "$d/lib/libbluebus.so"
+          cp capi/README.md LICENSE "$d/"
+      - name: Check the archive (CMake package, pkg-config, static and shared)
+        run: |
+          d="$PWD/bluebus-c-${{ matrix.name }}"
+          mkdir smoke
+          cat > smoke/CMakeLists.txt <<'CMAKE'
+          cmake_minimum_required(VERSION 3.16)
+          project(smoke C CXX)
+          find_package(bluebus 0.1 REQUIRED)
+          add_executable(scan ../capi/examples/scan.c)
+          target_link_libraries(scan PRIVATE bluebus::bluebus)
+          add_executable(central ../capi/examples/central.cpp)
+          set_target_properties(central PROPERTIES CXX_STANDARD 17)
+          target_link_libraries(central PRIVATE bluebus::static)
+          CMAKE
+          cmake -S smoke -B smoke/build -DCMAKE_PREFIX_PATH="$d"
+          cmake --build smoke/build
+          PKG_CONFIG_PATH="$d/lib/pkgconfig" pkg-config --cflags --libs bluebus
+          cc -std=c99 capi/examples/peripheral.c $(PKG_CONFIG_PATH="$d/lib/pkgconfig" pkg-config --cflags --libs bluebus) -o smoke/peripheral
+          tar czf "bluebus-c-${{ matrix.name }}.tar.gz" "bluebus-c-${{ matrix.name }}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bluebus-c-${{ matrix.name }}
+          path: bluebus-c-${{ matrix.name }}.tar.gz
+
+  release:
+    permissions:
+      contents: write
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --title "C/C++ libraries $GITHUB_REF_NAME" --notes "Prebuilt bluebus C/C++ libraries for Linux (see capi/README.md)."
+          gh release upload "$GITHUB_REF_NAME" dist/* -R "$GITHUB_REPOSITORY" --clobber
