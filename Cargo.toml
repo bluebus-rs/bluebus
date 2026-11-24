@@ -1,6 +1,6 @@
 [package]
 name = "bluebus"
-version = "0.1.11"
+version = "0.1.12"
 edition = "2021"
 rust-version = "1.89"
 description = "Async Bluetooth and BLE library for Linux: scan, connect, pair, GATT client and server, LE advertising and device events through BlueZ over D-Bus (pure Rust, zbus)."
@@ -17,7 +17,7 @@ futures = "0.3.31"
 lazy_static = "1.5.0"
 tokio = { version = "1.43.0", features = ["full"] }
 tracing = "0.1"
-zbus = { version = "5.5.0", default-features = false, features = ["tokio"] }
+zbus = { version = "5.5.0", default-features = false, features = ["tokio", "blocking-api"] }
 
 [lib]
 name = "bluebus"

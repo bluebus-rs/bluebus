@@ -31,6 +31,16 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
+  semver:
+    # The bluebus crate must stay backward compatible with the last release
+    # on crates.io (python/ and capi/ are not published there).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
+        with:
+          package: bluebus
+
   msrv:
     runs-on: ubuntu-latest
     steps:

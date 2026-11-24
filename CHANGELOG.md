@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.12 — 2026-11-24
 
-Additive only; backward compatible with 0.1.11 and 0.1.10.
+Additive only; backward compatible with 0.1.11 and 0.1.10. The Python
+package `bluebus` 0.1.0 and the C/C++ libraries `c-v0.1.0` are released
+with it.
 
 ### Added
 - **`bluebus::ble`: a high-level, easy API** (not re-exported at the crate
@@ -70,11 +72,14 @@ Additive only; backward compatible with 0.1.11 and 0.1.10.
   workflow with prebuilt Linux x86_64 and aarch64 archives.
 
 ### Changed
+- CI checks the `bluebus` crate with `cargo semver-checks` against the
+  last crates.io release.
 - Minimum supported Rust version is now declared (`rust-version = "1.89"`)
   and checked in CI; the current dependency versions need 1.89.
 - zbus runs on the tokio runtime (`features = ["tokio"]`) instead of its own
   async-io executor thread: about 35 % less CPU for GATT reads and writes.
-  bluebus already required tokio.
+  bluebus already required tokio. The `*ProxyBlocking` types of 0.1.11 stay
+  (zbus `blocking-api` feature).
 - `characteristic_notifications` reads the notified value straight from the
   D-Bus message (about 15 % less CPU per notification), with the general
   decoder as fallback.
