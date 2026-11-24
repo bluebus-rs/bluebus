@@ -24,7 +24,7 @@ tokio = { version = "1.43.0", features = ["rt-multi-thread", "time", "sync", "ma
 
 [dev-dependencies]
 tokio = { version = "1.43.0", features = ["full"] }
-zbus = "5.5.0"
+zbus = "6.5.0"
 
 # Runs a program against the mock BlueZ of the tests (used by CTest).
 [[example]]
