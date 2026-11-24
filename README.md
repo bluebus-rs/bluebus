@@ -22,7 +22,7 @@ events, all from `async`/`await` code with `tokio`.
 
 ```toml
 [dependencies]
-bluebus = "0.1.11"
+bluebus = "0.1.12"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -488,10 +488,10 @@ docker stop bluebus-vhci
 
 ## Compatibility and versioning
 
-bluebus follows [semantic versioning](https://semver.org/). 0.1.11 is
-backward compatible with 0.1.10: this is checked with `cargo semver-checks`
-and a compile test. See [CHANGELOG.md](CHANGELOG.md) for the bugs fixed
-in 0.1.11.
+bluebus follows [semantic versioning](https://semver.org/). 0.1.12 is
+backward compatible with 0.1.11 and 0.1.10 (it only adds API): this is
+checked with `cargo semver-checks` and a compile test. See
+[CHANGELOG.md](CHANGELOG.md) for what each release adds and fixes.
 
 ## Contributing
 
